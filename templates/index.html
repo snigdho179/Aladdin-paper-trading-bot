@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aladdin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --card-bg-color: #161b22;
+            --border-color: #30363d;
+            --text-color: #c9d1d9;
+            --text-muted-color: #8b949e;
+            --win-color: #28a745;
+            --loss-color: #dc3545;
+            --primary-glow: rgba(59, 130, 246, 0.3);
+            --danger-glow: rgba(220, 53, 69, 0.3);
+            --card-fixed-height: 400px;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .card {
+            background-color: var(--card-bg-color);
+            border: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+            height: var(--card-fixed-height);
+            display: flex;
+            flex-direction: column;
+        }
+        .card-body {
+            overflow-y: auto; 
+            flex-grow: 1; 
+        }
+
+        .card-header {
+            background-color: rgba(13, 17, 23, 0.7);
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 500;
+        }
+        
+        .log-panel, .error-log-panel {
+            font-family: 'SF Mono', 'Consolas', 'Menlo', monospace;
+            font-size: 0.85em;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            height: 100%;
+            background-color: #010409;
+            padding: 1rem;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .error-log-panel { box-shadow: 0 0 15px var(--danger-glow); }
+
+        .win { color: var(--win-color); }
+        .loss { color: var(--loss-color); }
+        
+        .perf-metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.8rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .perf-metric:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        .perf-metric:first-child {
+            padding-top: 0;
+        }
+        .perf-metric-label {
+            font-weight: 500;
+        }
+        .perf-metric-value {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        .win-rate-details {
+            font-size: 0.8rem;
+            color: var(--text-muted-color);
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <main class="container-fluid my-4">
+        <header class="d-flex justify-content-between align-items-center mb-4 px-3">
+            <h1 class="mb-0 h3 d-flex align-items-center"><i class="bi bi-robot me-3" style="font-size: 1.5em;"></i>Aladdin Dashboard</h1>
+            <div id="bot-status-container">
+                <span id="bot-status-badge" class="badge fs-6 rounded-pill text-bg-secondary px-3 py-2">Loading...</span>
+            </div>
+        </header>
+
+        <div class="row px-3">
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header"><i class="bi bi-joystick me-2"></i> Bot Controls</div>
+                    <div class="card-body d-flex flex-column justify-content-center">
+                        <p id="last-heartbeat" class="mb-3 text-center text-muted">Connecting...</p>
+                        <div class="d-grid gap-2 d-sm-flex">
+                            <button id="start-btn" onclick="startBot()" class="btn btn-outline-success flex-grow-1"><i class="bi bi-play-circle me-1"></i> Start</button>
+                            <button id="stop-btn" onclick="stopBot()" class="btn btn-outline-danger flex-grow-1"><i class="bi bi-stop-circle me-1"></i> Stop</button>
+                        </div>
+                        <p class="text-muted mt-3 mb-0 text-center"><small id="control-message"></small></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header"><i class="bi bi-graph-up-arrow me-2"></i> Performance Metrics</div>
+                    <div class="card-body">
+                        <div class="perf-metric">
+                            <div>
+                                <span class="perf-metric-label">Win Rate</span>
+                                <small id="win-rate-details" class="win-rate-details">Total: 0 | Wins: 0 | Losses: 0</small>
+                            </div>
+                            <span id="win-rate-value" class="perf-metric-value text-primary">0.00%</span>
+                        </div>
+                        <div class="perf-metric">
+                            <span class="perf-metric-label">PnL (Today)</span>
+                            <span id="pnl-today-value" class="badge fs-6">...</span>
+                        </div>
+                        <div class="perf-metric">
+                            <span class="perf-metric-label">PnL (This Month)</span>
+                            <span id="pnl-month-value" class="badge fs-6">...</span>
+                        </div>
+                        <div class="perf-metric">
+                            <span class="perf-metric-label">PnL (This Year)</span>
+                            <span id="pnl-year-value" class="badge fs-6">...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                 <div class="card">
+                    <div class="card-header"><i class="bi bi-terminal-fill me-2"></i> Live Output</div>
+                    <div class="card-body p-2 d-flex">
+                        <pre id="live-output-log" class="log-panel mb-0 flex-grow-1">Loading live output...</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row px-3 mt-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header"><i class="bi bi-table me-2"></i> Recent Trades</div>
+                    <div class="card-body p-2">
+                        <div class="table-responsive">
+                            <table class="table table-dark table-striped table-hover table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Pair</th>
+                                        <th>Direction</th>
+                                        <th>Entry Price</th>
+                                        <th>Status</th>
+                                        <th class="text-end">PnL</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="trade-history-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row px-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i> Recent Error Logs</div>
+                    <div class="card-body p-2">
+                        <pre id="error-log-panel" class="error-log-panel mb-0">Loading error logs...</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function setPnlBadge(element, value) {
+            element.textContent = `$${value.toFixed(2)}`;
+            if (value > 0) {
+                element.className = 'badge fs-6 text-bg-success';
+            } else if (value < 0) {
+                element.className = 'badge fs-6 text-bg-danger';
+            } else {
+                element.className = 'badge fs-6 text-bg-secondary';
+            }
+        }
+
+        function updatePerformance() {
+            fetch('/api/performance').then(r => r.json()).then(d => {
+                document.getElementById('win-rate-value').textContent = `${d.win_percentage.toFixed(2)}%`;
+                document.getElementById('win-rate-details').textContent = `Total: ${d.total_trades} | Wins: ${d.wins} | Losses: ${d.losses}`;
+                setPnlBadge(document.getElementById('pnl-today-value'), d.pnl_today);
+                setPnlBadge(document.getElementById('pnl-month-value'), d.pnl_this_month);
+                setPnlBadge(document.getElementById('pnl-year-value'), d.pnl_this_year);
+            }).catch(error => console.error("Error fetching performance data:", error));
+        }
+        
+        function updateStatus() {
+            fetch('/api/status').then(r => r.json()).then(d => {
+                const s = document.getElementById('bot-status-badge');
+                s.textContent = d.status.status;
+                s.className = 'badge fs-6 rounded-pill px-3 py-2 ';
+                if (d.status.status === 'Running') s.classList.add('text-bg-success');
+                else if (d.status.status === 'Stalled') s.classList.add('text-bg-warning');
+                else s.classList.add('text-bg-danger');
+                document.getElementById('last-heartbeat').textContent = `Last Heartbeat: ${d.status.last_heartbeat}`;
+            }).catch(error => console.error("Error fetching status:", error));
+        }
+
+        function updateTradeHistory() {
+            fetch('/api/trades').then(r => r.json()).then(d => {
+                const tbody = document.getElementById('trade-history-body');
+                tbody.innerHTML = '';
+                if (!d || d.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No trades found.</td></tr>';
+                    return;
+                }
+                d.forEach(t => {
+                    const pnlClass = t.pnl > 0 ? 'win' : t.pnl < 0 ? 'loss' : 'text-muted';
+                    const directionClass = t.direction.toLowerCase() === 'long' ? 'text-success' : 'text-danger';
+                    let statusClass = t.status === 'win' ? 'text-success' : t.status === 'loss' ? 'text-danger' : t.status === 'open' ? 'text-primary' : 'text-muted';
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${t.timestamp}</td>
+                            <td>${t.pair}</td>
+                            <td><span class="${directionClass}">${t.direction.toUpperCase()}</span></td>
+                            <td>${(t.entry_price || 0).toFixed(4)}</td>
+                            <td><span class="${statusClass}">${t.status.toUpperCase()}</span></td>
+                            <td class="text-end ${pnlClass} fw-bold">${(t.pnl || 0).toFixed(2)}</td>
+                        </tr>`;
+                });
+            }).catch(error => console.error("Error fetching trade history:", error));
+        }
+
+        function updateLiveOutput() {
+            fetch('/api/live_output').then(r => r.json()).then(d => {
+                const logEl = document.getElementById('live-output-log');
+                logEl.textContent = d.output;
+                logEl.scrollTop = logEl.scrollHeight;
+            }).catch(error => console.error("Error fetching live output:", error));
+        }
+
+        function updateErrorLogs() {
+            fetch('/api/error_logs').then(r => r.json()).then(d => {
+                const logEl = document.getElementById('error-log-panel');
+                if (d.errors && d.errors.length > 0) {
+                    logEl.textContent = d.errors.join('\n\n');
+                } else {
+                    logEl.textContent = 'No recent errors.';
+                }
+            }).catch(error => {
+                console.error("Error fetching error logs:", error);
+                document.getElementById('error-log-panel').textContent = 'Failed to load error logs.';
+            });
+        }
+
+        function startBot() {
+            const msgEl = document.getElementById('control-message');
+            msgEl.textContent = 'Sending start command...';
+            msgEl.classList.remove('text-danger');
+            fetch('/start_bot', { method: 'POST' })
+                .then(r => r.json())
+                .then(d => {
+                    msgEl.textContent = d.message;
+                    setTimeout(updateAllData, 500);
+                })
+                .catch(err => {
+                    msgEl.textContent = 'Failed to send command.';
+                    msgEl.classList.add('text-danger');
+                });
+        }
+
+        function stopBot() {
+            const msgEl = document.getElementById('control-message');
+            msgEl.textContent = 'Sending stop command...';
+            msgEl.classList.remove('text-danger');
+            fetch('/stop_bot', { method: 'POST' })
+                .then(r => r.json())
+                .then(d => {
+                    msgEl.textContent = d.message;
+                    setTimeout(updateAllData, 500);
+                })
+                .catch(err => {
+                    msgEl.textContent = 'Failed to send command.';
+                    msgEl.classList.add('text-danger');
+                });
+        }
+
+        function updateAllData() {
+            updateStatus();
+            updatePerformance();
+            updateTradeHistory();
+            updateLiveOutput();
+            updateErrorLogs();
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            updateAllData();
+            setInterval(updateAllData, 5000);
+        });
+    </script>
+</body>
+</html>
